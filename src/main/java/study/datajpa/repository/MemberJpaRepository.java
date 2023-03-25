@@ -14,7 +14,7 @@ public class MemberJpaRepository {
     @PersistenceContext
     private EntityManager em;
 
-    public Member save(Member member){
+    public Member save(Member member) {
         em.persist(member);
         return member;
     }
@@ -29,7 +29,7 @@ public class MemberJpaRepository {
                 .getResultList();
     }
 
-    public Optional<Member> findById(Long id){
+    public Optional<Member> findById(Long id) {
         Member member = em.find(Member.class, id);
         return Optional.ofNullable(member);
     }
@@ -39,7 +39,20 @@ public class MemberJpaRepository {
                 .getSingleResult(); //단건일 경우 SingleResult
     }
 
-    public Member find(Long id){
+    public Member find(Long id) {
         return em.find(Member.class, id);
+    }
+
+    public List<Member> findByUsernameAndAgeGreaterThan(String username, int age) {
+        return em.createQuery("select m from Member m where m.username =:username and m.age > :age")
+                .setParameter("username", username)
+                .setParameter("age", age)
+                .getResultList();
+    }
+
+    public List<Member> findByUsername(String username){
+        return em.createNamedQuery("Member.findByUsername", Member.class)
+                .setParameter("username", "username")
+                .getResultList();
     }
 }
