@@ -11,7 +11,10 @@ import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
+import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,10 +22,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @Transactional
 @Rollback(false)
-class MemberRepositoryTest {
+public class MemberRepositoryTest {
 
     @Autowired
     MemberRepository memberRepository;
+    @Autowired
+    TeamRepository teamRepository;
+
+    @PersistenceContext
+    EntityManager em;
 
     @Test
     public void testMember() {
@@ -133,5 +141,82 @@ class MemberRepositoryTest {
         // Page유지하면서 DTO로 변경 : api로 반환 가능
         // Page 유지하면서 JSON생성될 때, totalPage, totalElement 등이 JSON으로 반환됨
     }
+
+
+    @Test
+    public void bulkUpdate() {
+        //given
+        memberRepository.save(new Member("Member1",10));
+        memberRepository.save(new Member("Member2",19));
+        memberRepository.save(new Member("Member3",20));
+        memberRepository.save(new Member("Member4",21));
+        memberRepository.save(new Member("Member5",40));
+
+        //when
+        int resultCount = memberRepository.bulkAgePlus(20);
+
+        //then
+        assertThat(resultCount).isEqualTo(3);
+    }
+
+
+    @Test
+    public void findMemberLazy() {
+        //given
+        //member1 -> teamA
+        //member2 -> teamB
+
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+        Member member1 = new Member("member1", 10, teamA);
+        Member member2 = new Member("member2", 10, teamB);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        em.flush();
+        em.clear();
+
+        //when
+        List<Member> members = memberRepository.findEntityGraphByUsername("member1");
+
+        for (Member member : members) {
+            System.out.println("member = " + member.getUsername());
+            System.out.println("member.team" + member.getTeam().getName());
+            System.out.println("member.teamClass" + member.getTeam().getClass());
+        }
+
+    }
+
+
+    @Test
+    public void queryHint(){
+        //given
+        Member member1 = new Member("member1", 10);
+        memberRepository.save(member1);
+        em.flush();  //원래는 트랜잭션이 커밋될때 flush가 되지만 강제로 flush 하게 되면 쓰기지연 저장소에 있던 쿼리가 날라가게 된다. 1차 캐시는 남아있음
+        em.clear();  //영속성 컨텍스트 날리기(전부 다)
+
+        //when
+        Member findMember = memberRepository.findReadOnlyByUsername("member1");
+        findMember.setUsername("member2");
+
+        em.flush();
+    }
+
+    @Test
+    public void lock(){
+        //given
+        Member member1 = new Member("member1", 10);
+        memberRepository.save(member1);
+        em.flush();  //원래는 트랜잭션이 커밋될때 flush가 되지만 강제로 flush 하게 되면 쓰기지연 저장소에 있던 쿼리가 날라가게 된다. 1차 캐시는 남아있음
+        em.clear();  //영속성 컨텍스트 날리기(전부 다)
+
+        //when
+        List<Member> member11 = memberRepository.findLockByUsername("member1");
+
+    }
+
 
 }
